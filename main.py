@@ -1,14 +1,15 @@
 import json
 import os
-import time
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 from pandas.core.api import DataFrame
 
-DEFAULT_FILEPATH = './data/'
+DEFAULT_DIR = './data/'
 WRITE_FILE = './appended_data.json'
 # number of rows to fetch
-NUMBER_OF_ROWS =100
+NUMBER_OF_ROWS = 100
+
 
 # change max rows before truncating
 pd.set_option('display.max_rows', NUMBER_OF_ROWS)
@@ -18,15 +19,16 @@ pd.set_option('display.max_seq_items', None)
 data = []
 
 
-def read_files():
-    directory = os.fsencode(DEFAULT_FILEPATH)
+def read_files(path:str):
+    """Helper function that reads folder for JSON files containing Spotify data and saves it to a global data array"""
+    directory = os.fsencode(path)
 
     for file in os.listdir(directory):
         filename = os.fsdecode(file)
 
         if filename.endswith('.json'):
 
-            with open(f'{DEFAULT_FILEPATH}/{filename}') as fread:
+            with open(f'{path}/{filename}') as fread:
                 json_data = json.load(fread)
                 data.extend(json_data)
 
@@ -55,10 +57,18 @@ def print_stats(df:DataFrame):
     print('\n Minutes played per song')
     print(min_by_song.sort_values(by='mins_played',ascending=False).head(NUMBER_OF_ROWS).to_string(header=False))
 
+def plot_graphs(df:DataFrame):
 
-def main():
-    read_files()
+    # listen_time['master_metadata_album_artist_name'].value_counts().head(n).plot(kind='bar',title=f'top {n} artists of all time')
+    # plt.show()
+    pass
+
+def main(mode:str,filepath=DEFAULT_DIR):
+    read_files(filepath)
+    # global DataFrame that will be used by all functions
     df = pd.DataFrame(data)
+
+    # converting 'ts' column to datetime
     df['ts'] = pd.to_datetime(df['ts'])
     datetime = df['ts'].dt
     df['year'] = datetime.year
@@ -66,7 +76,26 @@ def main():
     df['mins_played'] = df['ms_played'] / 60000
     df['hours_played'] = df['mins_played'] / 60
 
-    print_stats(df)
+    # TODO: add more modes 
+    match mode:
+        # Stats mode
+        case 's':
+            print_stats(df)
+
 
 if __name__ == '__main__':
-    main()
+
+    parser = argparse.ArgumentParser(description='Spotify JSON data analyser script')
+    parser.add_argument('-s',action='store_true',help='Runs script in Stats mode (this mode prints top songs/artists)')
+    parser.add_argument('-d','--dir', action='store_true',help='Specifies a folder containing unziped Spotify data (defaults to ./data/)')
+
+    d = DEFAULT_DIR
+
+    args = parser.parse_args()
+
+    if args.d:
+        d = args.d
+
+    if args.s:
+        main('s',d)
+
