@@ -1,11 +1,9 @@
 import json
-from turtle import right
-import numpy as np
 import os
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
+import matplotlib as mpl
 from pandas.core.api import DataFrame
 
 dir = './data/'
@@ -14,6 +12,23 @@ write_file = './appended_data.json'
 number_of_rows = 10
 data = []
 supported_modes = ['stats','listen_time_plot','top_artists']
+
+# setting global graphs
+
+mpl.rcParams['xtick.color'] = 'white'
+mpl.rcParams['text.color'] = 'white'
+fig,ax = plt.subplots(figsize=(20,.95*number_of_rows),facecolor='#191414')
+fig.subplots_adjust(left=0,right=1)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.spines['left'].set_visible(False)
+ax.spines['bottom'].set_visible(False)
+ax.yaxis.set_ticks([])
+ax.set_facecolor('#191414')
+
+def add_text(x,y,text):
+    """Helper function for adding text to graph"""
+    ax.text(x,y,text,color='white',ha='center',va='center')
 
 def read_files():
     """Helper function that reads folder for JSON files containing Spotify data and saves it to a global data array"""
@@ -63,21 +78,8 @@ def fav_artist_by_year(df:DataFrame):
 
     color_map = {artist: plt.cm.viridis(i/len(top['artist'].unique())) for i, artist in enumerate(top['artist'].unique())}
 
-    fig,ax = plt.subplots(figsize=(20,.95*number_of_rows),facecolor='#023d42')
-
-
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-    ax.yaxis.set_ticks([])
-    
-    ax.set_facecolor('#023d42')
     ax.set_xticks(top['year'])
-    ax.set_xticklabels(top['year'],color='white')
 
-    plt.ylim(-1,number_of_rows+2)
-    plt.subplots_adjust(left=0,right=1)
     plt.title(f'Top {number_of_rows} artists since {top["year"].min()}',color='white') 
 
     for year,data in top.groupby('year'):
@@ -86,7 +88,8 @@ def fav_artist_by_year(df:DataFrame):
             if ' 'in artist:
                 artist = '\n'.join(str(artist).split(' '))
             rank = int(value['rank'])
-            ax.text(year,rank,artist,color='white',ha='center',va='center')
+            # ax.text(year,rank,artist,color='white',ha='center',va='center')
+            add_text(year,rank,artist)
             ax.scatter(year,rank,label=i,color=color_map[value['artist']],marker='o')
 
     plt.tight_layout()
@@ -95,10 +98,10 @@ def fav_artist_by_year(df:DataFrame):
 
 def listen_time_by_year(df:DataFrame):
     yearly =df.groupby(df['year'])['mins_played'].sum()
-    _,ax = plt.subplots()
     yearly.plot(kind='bar',title='Minutes played by year',ylabel='Minutes played',xlabel='year')
     for i,v in enumerate(yearly):
-        ax.text(i,v,str(int(v)),ha='center',va='bottom')
+        # ax.text(i,v,str(int(v)),ha='center',va='bottom')
+        add_text(i,v,str(int(v)))
     plt.show()
 
 def main(mode:str):
