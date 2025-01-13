@@ -15,3 +15,7 @@ run `main.py -h` to see all options
 Example of yearly minutes played by year
 
 ![mins played by year](screenshots/mins_by_year.png)
+
+Examples of top_artists graph plot
+
+![top artists by year](screenshots/top_artists_by_year.png)
