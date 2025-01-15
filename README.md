@@ -10,6 +10,9 @@ All deps are in requirements.txt and can be installed with `pip3 install -r requ
 
 run `main.py -h` to see all options
 
+> [!NOTE]
+> top_genres mode requires a valid [Spotify for developer](https://developer.spotify.com/) CLIENT_ID and CLIENT_SECRET.
+
 ## Screenshots
 
 Example of yearly minutes played by year
