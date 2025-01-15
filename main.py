@@ -1,20 +1,25 @@
 import json
+from ntpath import isfile
 import os
 import argparse
+from time import sleep
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 import matplotlib as mpl
 from pandas.core.api import DataFrame
+
+from helpers.fetch_genres import fetch_artist_genre, get_artist_id
+
 
 dir = './data/'
 write_file = './appended_data.json'
 # number of rows to fetch
 number_of_rows = 10
 data = []
-supported_modes = ['stats','listen_time_plot','top_artists']
+supported_modes = ['stats','listen_time_plot','top_artists','top_genre']
 
 # setting global graphs
-
 mpl.rcParams['xtick.color'] = 'white'
 mpl.rcParams['text.color'] = 'white'
 fig,ax = plt.subplots(figsize=(20,.95*number_of_rows),facecolor='#191414')
@@ -26,9 +31,9 @@ ax.spines['bottom'].set_visible(False)
 ax.yaxis.set_ticks([])
 ax.set_facecolor('#191414')
 
-def add_text(x,y,text):
+def add_text(x,y,text,ha='center',va='center'):
     """Helper function for adding text to graph"""
-    ax.text(x,y,text,color='white',ha='center',va='center')
+    ax.text(x,y,text,color='white',ha=ha,va=va)
 
 def read_files():
     """Helper function that reads folder for JSON files containing Spotify data and saves it to a global data array"""
@@ -48,11 +53,13 @@ def write_to_file():
         fwrite.write(f'{data}')
 
 def print_stats(df:DataFrame):
+    unique_artists = df['artist'].unique()
     # filter out 0ms of listen time
     listen_time = df.query('ms_played >0')
     print(f'Total listen time:')
     print(int(listen_time["mins_played"].sum()))
 
+    print(f'\nYou listened to {len(unique_artists)} unique artists')
     print(f'\nTop {number_of_rows} artists (count of songs played by artist): ')
     print(listen_time['artist'].value_counts().head(number_of_rows).to_string(header=False,index=True))
 
@@ -98,11 +105,38 @@ def fav_artist_by_year(df:DataFrame):
 
 def listen_time_by_year(df:DataFrame):
     yearly =df.groupby(df['year'])['mins_played'].sum()
-    yearly.plot(kind='bar',title='Minutes played by year',ylabel='Minutes played',xlabel='year')
+    yearly.plot(kind='bar',title='Minutes played by year',ylabel='Minutes played',xlabel='year',color='#1ED760')
     for i,v in enumerate(yearly):
-        # ax.text(i,v,str(int(v)),ha='center',va='bottom')
-        add_text(i,v,str(int(v)))
+        add_text(i,v,str(int(v)),va='bottom')
     plt.show()
+
+def top_genre(df:DataFrame):
+    genres_df = pd.DataFrame()
+    genres_list=[]
+
+    track_id = df['track_id'].unique().tolist()
+
+    track_id_groups = [track_id[i:i+50] for i in range(0,len(track_id),50)] # group of 50 track IDs
+
+    if not os.path.isfile('genres.csv'):
+        print('genres file not found!\nThis script will now fetch data from spotify (this will take a while), press Ctrl-C to cancel!')
+        sleep(20)
+        for track_id in track_id_groups:
+            track_str = ','.join(track_id)
+            print('getting artist ids...')
+            artist_ids = get_artist_id(track_str)
+            artist_id_group = [artist_ids[i:i+50] for i in range(0,len(artist_ids),50)]
+            for artist_id in artist_id_group:
+                artists_str = ','.join(artist_id)
+                print('fetching genres...')
+                genres = fetch_artist_genre(artists_str)
+                genres_list.extend(genres)
+        genres_df['genres'] = genres_list
+        genres_df.to_csv('genres.csv')
+    else:
+        genres_df = pd.read_csv('genres.csv')
+
+    print(genres_df['genres'].value_counts().head(number_of_rows))
 
 def main(mode:str):
     if len(data) == 0:
@@ -110,19 +144,24 @@ def main(mode:str):
         read_files()
 
     # global DataFrame that will be used by all functions
-    df = pd.DataFrame(data)
+    music_df = pd.DataFrame(data)
 
     # converting 'ts' column to datetime
-    df['ts'] = pd.to_datetime(df['ts'])
-    datetime = df['ts'].dt
-    df['year'] = datetime.year
-    df['month'] = datetime.month
+    music_df['ts'] = pd.to_datetime(music_df['ts'])
+    datetime = music_df['ts'].dt
+    music_df['year'] = datetime.year
+    music_df['month'] = datetime.month
     # TODO: mins_played is float64, make it an int for easier visualization 
-    df['mins_played'] = df['ms_played'] / 60000
-    df['hours_played'] = df['mins_played'] / 60
+    music_df['mins_played'] = music_df['ms_played'] / 60000
+    music_df['hours_played'] = music_df['mins_played'] / 60
+    # get track ids 
+    music_df['track_id'] = music_df['spotify_track_uri'].str.split(':').str[-1]
+
+    # filtering Podcast episodes 
+    music_df = music_df[music_df['track_id'].notna()]
 
     # renaming columns
-    df.rename({
+    music_df.rename({
         'master_metadata_track_name':'track',
         'master_metadata_album_album_name':'album',
         'master_metadata_album_artist_name':'artist'
@@ -132,14 +171,16 @@ def main(mode:str):
     match mode:
         case 'stats':
             # INFO: Stats mode
-            print_stats(df)
+            print_stats(music_df)
         case 'listen_time_plot':
-            listen_time_by_year(df)
+            listen_time_by_year(music_df)
         case 'top_artists':
-            fav_artist_by_year(df)
+            fav_artist_by_year(music_df)
+        case 'top_genre':
+            top_genre(music_df)
         case s:
             print(f'Unknown option {s}, available options are: \n{" ".join(supported_modes)}')
-            print_stats(df)
+            print_stats(music_df)
 
 if __name__ == '__main__':
 
@@ -147,7 +188,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-d', type=str,help='Specifies a folder containing unziped Spotify data (defaults to ./data/)')
     parser.add_argument('-n',type=int,help='Specified number of rows to show')
-
+    
     parser.add_argument('mode',nargs='?',default='stats',help=f'supported modes: {" ".join(supported_modes)}, defaults to stats')
 
     args = parser.parse_args()
