@@ -17,6 +17,7 @@ write_file = './appended_data.json'
 # number of rows to fetch
 number_of_rows = 10
 data = []
+curr_artist= None
 supported_modes = ['stats','listen_time_plot','top_artists','top_genre']
 
 # setting global graphs
@@ -138,6 +139,16 @@ def top_genre(df:DataFrame):
 
     print(genres_df['genres'].value_counts().head(number_of_rows))
 
+def artist_info(df:pd.DataFrame):
+    """Returns pandas DF with filtered artist"""
+
+    if  curr_artist == (None or ''):
+        raise Exception('No artist specified')
+
+    if not curr_artist in df['artist'].unique():
+        print('artist not found')
+    return df[df['artist'] == curr_artist]
+
 def main(mode:str):
     if len(data) == 0:
         # if user specifies multiple flags, dont keep appending to data if it already contains values
@@ -190,6 +201,7 @@ if __name__ == '__main__':
     parser.add_argument('-n',type=int,help='Specified number of rows to show')
     
     parser.add_argument('mode',nargs='?',default='stats',help=f'supported modes: {" ".join(supported_modes)}, defaults to stats')
+    parser.add_argument('artist',nargs=1,help='Artist to search')
 
     args = parser.parse_args()
 
@@ -199,6 +211,9 @@ if __name__ == '__main__':
 
     if args.n:
         number_of_rows = args.n
+
+    if not args.artist == args.mode:
+        curr_artist = args.artist.pop()
 
     main(args.mode)
 
