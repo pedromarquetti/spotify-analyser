@@ -22,27 +22,37 @@ def get_token()->str:
                   })
     return post.json()['access_token']
 
-def get_artist_id(track_ids:str)->list[str]:
+def get_artist_id(track_ids:str):
     """Gets artists id based on Track id (spotify doesn't have a direct track to artist id endpoint)"""
 
-    ids: list[str] = []
-    get = req.get(f'https://api.spotify.com/v1/tracks?ids={track_ids}',
-                  headers={
-                  'Authorization':f'Bearer {get_token()}'
-                  })
+    ids = []
+    try:
+        
+        get = req.get(f'https://api.spotify.com/v1/tracks?ids={track_ids}',
+                      headers={
+                      'Authorization':f'Bearer {get_token()}'
+                      })
 
-    if get.status_code >400:
-        raise Exception('400 HTTP code found!')
+        if get.status_code >400:
+            raise Exception('400 HTTP code found!')
 
-    res = get.json()
+        res = get.json()
 
-    for track in res['tracks']:
-        for artist in track['artists']:
-            ids.append(artist['id'])
+        for track in res['tracks']:
+            for artist in track['artists']:
+                obj :dict[str,str]= {
+                    'artist_name':artist['name'],
+                    'id':artist['id']
+                }
+                ids.append(obj)
+
+    except Exception as e:
+        print(get.status_code)
+        raise e
 
     return ids
 
-def fetch_artist_genre(artist_ids:str)->list[str]:
+def fetch_artist_genre(artist_ids:str):
     """Helper function that fetches the genre(s) of specified artist"""
     genres = []
     get =  req.get(f'https://api.spotify.com/v1/artists?ids={artist_ids}',headers={'Authorization':f'Bearer {get_token()}'})
@@ -53,7 +63,11 @@ def fetch_artist_genre(artist_ids:str)->list[str]:
     res = get.json()
 
     for artist in res['artists']:
-        genres.extend(artist['genres'])
+        obj = {
+            'genres':artist['genres'],
+            'id':artist['id']
+        }
+        genres.append(obj)
 
     return genres
 

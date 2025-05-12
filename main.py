@@ -113,7 +113,10 @@ def listen_time_by_year(df:DataFrame):
 
 def top_genre(df:DataFrame):
     genres_df = pd.DataFrame()
-    genres_list=[]
+    genres_list = []
+    info = []
+
+    extended_df = pd.DataFrame()
 
     track_id = df['track_id'].unique().tolist()
 
@@ -127,16 +130,22 @@ def top_genre(df:DataFrame):
             print('getting artist ids...')
             artist_ids = get_artist_id(track_str)
             artist_id_group = [artist_ids[i:i+50] for i in range(0,len(artist_ids),50)]
-            for artist_id in artist_id_group:
-                artists_str = ','.join(artist_id)
+            for obj in artist_id_group:
+                ids = [i['id'] for i in obj]
+                artists_str = ','.join(ids)
                 print('fetching genres...')
                 genres = fetch_artist_genre(artists_str)
                 genres_list.extend(genres)
+                info.extend(genres)
+        extended_df = pd.DataFrame( info)
         genres_df['genres'] = genres_list
         genres_df.to_csv('genres.csv')
+        extended_df.to_csv('info.csv')
     else:
         genres_df = pd.read_csv('genres.csv')
+        extended_df = pd.read_csv('info.csv')
 
+    print(genres_df)
     print(genres_df['genres'].value_counts().head(number_of_rows))
 
 def artist_info(df:pd.DataFrame):
