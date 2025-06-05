@@ -9,7 +9,9 @@ import numpy as np
 import matplotlib as mpl
 from pandas.core.api import DataFrame
 
-from helpers.fetch_genres import fetch_artist_genre, get_artist_id
+from helpers.add_text import add_text
+from helpers.clean_term import clear
+from helpers.fetch_genres import fetch_artist_genre, get_artist_id, get_token
 
 
 dir = './data/'
@@ -31,11 +33,6 @@ ax.spines['left'].set_visible(False)
 ax.spines['bottom'].set_visible(False)
 ax.yaxis.set_ticks([])
 ax.set_facecolor('#191414')
-
-
-def add_text(x, y, text, ha='center', va='center'):
-    """Helper function for adding text to graph"""
-    ax.text(x, y, text, color='white', ha=ha, va=va)
 
 
 def read_files():
@@ -128,11 +125,11 @@ def listen_time_by_year(df: DataFrame):
 
 
 def top_genre(df: DataFrame):
+    done = 0
+    token = get_token()
+
     genres_df = pd.DataFrame()
     genres_list = []
-    info = []
-
-    extended_df = pd.DataFrame()
 
     track_id = df['track_id'].unique().tolist()
 
@@ -141,31 +138,32 @@ def top_genre(df: DataFrame):
 
     if not os.path.isfile('genres.csv'):
         print('genres file not found!\nThis script will now fetch data from spotify (this will take a while), press Ctrl-C to cancel!')
-        sleep(20)
+        # sleep(20)
+        print(
+            f'there are {len(track_id_groups)} track ids, divided in {len(track_id_groups)} groups')
+
         for track_id in track_id_groups:
+            print('fetch artist')
             track_str = ','.join(track_id)
-            print('getting artist ids...')
-            artist_ids = get_artist_id(track_str)
+            artist_ids = get_artist_id(track_str, token)
             artist_id_group = [artist_ids[i:i+50]
                                for i in range(0, len(artist_ids), 50)]
+            done = done + 50
+
             for obj in artist_id_group:
+                print('fetch genre...')
                 ids = [i['id'] for i in obj]
                 artists_str = ','.join(ids)
-                print('fetching genres...')
-                genres = fetch_artist_genre(artists_str)
-                genres_list.extend(genres)
-                info.extend(genres)
-        extended_df = pd.DataFrame(info)
+                data = fetch_artist_genre(artists_str,token)
+                genres_list.extend(data)
+                print(int(done / len(track_id_groups))*'#')
+
         genres_df['genres'] = genres_list
         genres_df.to_csv('genres.csv')
-        extended_df.to_csv('info.csv')
     else:
         genres_df = pd.read_csv('genres.csv')
-        extended_df = pd.read_csv('info.csv')
 
-    print(genres_df)
     print(genres_df['genres'].value_counts().head(number_of_rows))
-
 
 def artist_info(df: pd.DataFrame):
     """Returns pandas DF with filtered artist"""
