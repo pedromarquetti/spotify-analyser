@@ -22,7 +22,7 @@ def get_token()->str:
                   })
     return post.json()['access_token']
 
-def get_artist_id(track_ids:str):
+def get_artist_id(track_ids:str,token:str):
     """Gets artists id based on Track id (spotify doesn't have a direct track to artist id endpoint)"""
 
     ids = []
@@ -30,7 +30,7 @@ def get_artist_id(track_ids:str):
         
         get = req.get(f'https://api.spotify.com/v1/tracks?ids={track_ids}',
                       headers={
-                      'Authorization':f'Bearer {get_token()}'
+                      'Authorization':f'Bearer {token}'
                       })
 
         if get.status_code >400:
@@ -47,27 +47,28 @@ def get_artist_id(track_ids:str):
                 ids.append(obj)
 
     except Exception as e:
-        print(get.status_code)
+        print('an error occurred while getting artist id')
         raise e
 
     return ids
 
-def fetch_artist_genre(artist_ids:str):
+def fetch_artist_genre(artist_ids:str,token:str):
     """Helper function that fetches the genre(s) of specified artist"""
     genres = []
-    get =  req.get(f'https://api.spotify.com/v1/artists?ids={artist_ids}',headers={'Authorization':f'Bearer {get_token()}'})
 
-    if get.status_code >400:
-        raise Exception('400 HTTP code found!')
+    try:
+        get =  req.get(f'https://api.spotify.com/v1/artists?ids={artist_ids}',headers={'Authorization':f'Bearer {token}'})
 
-    res = get.json()
+        if get.status_code >400:
+            raise Exception('400 HTTP code found!')
 
-    for artist in res['artists']:
-        obj = {
-            'genres':artist['genres'],
-            'id':artist['id']
-        }
-        genres.append(obj)
+        res = get.json()
+
+        for artist in res['artists']:
+            genres.extend(artist['genres'])
+    except Exception as e:
+        print('An Error occurred on fetch_artist_genre func!')
+        raise e
 
     return genres
 
